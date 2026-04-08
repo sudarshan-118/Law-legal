@@ -30,9 +30,18 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .main .block-container { padding: 2rem 2.5rem; max-width: 1180px; }
 
 /* page header */
-.page-header { margin-bottom:1.8rem; padding-bottom:1.4rem; border-bottom:1px solid rgba(148,163,184,0.15); }
-.page-header h1 { font-size:1.7rem; font-weight:700; letter-spacing:-0.5px; margin:0 0 4px 0; }
-.page-header p  { font-size:0.86rem; color:#94a3b8; margin:0; }
+.page-header { margin-bottom:2rem; padding-bottom:1.5rem; border-bottom:1px solid rgba(148,163,184,0.15); text-align:center; padding-top: 1rem; }
+.page-header h1 { 
+    font-size:3.2rem; 
+    font-weight:900; 
+    letter-spacing:-1px; 
+    margin:0 0 12px 0; 
+    background: linear-gradient(135deg, #a5b4fc 0%, #818cf8 50%, #c084fc 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 4px 30px rgba(129, 140, 248, 0.25);
+}
+.page-header p { font-size:1.1rem; color:#94a3b8; margin:0; font-weight:400; }
 
 /* primary button */
 [data-testid="stButton"] > button[kind="primary"] {
@@ -206,7 +215,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── UPLOAD + PIPELINE ─────────────────────────────────────────────────────────
-uploaded_file = st.file_uploader("Drop your legal PDF here", type="pdf")
+def clear_state():
+    st.session_state.analysis_data = None
+    st.session_state.document_text = ""
+    st.session_state.messages = []
+
+uploaded_file = st.file_uploader("Drop your legal PDF here", type="pdf", on_change=clear_state)
 
 if uploaded_file and not st.session_state.analysis_data:
     # ── BACKEND (unchanged) ──────────────────────────────────
