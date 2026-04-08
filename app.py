@@ -133,8 +133,7 @@ with st.sidebar:
 """, unsafe_allow_html=True)
 
     st.markdown('<div class="sidebar-label">Output Language</div>', unsafe_allow_html=True)
-    st.caption("Auto-detects document language. Override below if needed.")
-    selected_language = st.selectbox("", ["Auto-Detect", "English", "Hindi", "Tamil", "Kannada"], label_visibility="collapsed")
+    selected_language = st.selectbox("", ["English", "Hindi", "Tamil", "Kannada"], label_visibility="collapsed")
 
     st.markdown('<div class="sidebar-label">AI Agent Pipeline</div>', unsafe_allow_html=True)
 
@@ -229,17 +228,10 @@ if uploaded_file and not st.session_state.analysis_data:
             time.sleep(0.4)
             st.write("🧠 Legal reasoning & fairness check in progress (Groq)…")
             try:
-                # ── BACKEND PROMPT (unchanged logic, auto-language added) ────
-                if selected_language == "Auto-Detect":
-                    lang_instruction = "Detect the primary language of the document text and respond entirely in that same language. If the document is in Hindi, respond in Hindi. If Tamil, respond in Tamil. If Kannada, respond in Kannada. Otherwise respond in English."
-                    lang_schema = "the same language as the document (auto-detected)"
-                else:
-                    lang_instruction = f"All generated output text MUST be written natively in {selected_language}."
-                    lang_schema = selected_language
-
+                # ── BACKEND PROMPT (unchanged) ──────────────────────────
                 sys_prompt = f"""You are a multi-agent AI legal system.
 Perform internal processing and output strictly a JSON object.
-CRITICAL: {lang_instruction} The only exception is severity levels which must stay in ENGLISH.
+CRITICAL: All generated output text in the JSON MUST be written natively in {selected_language}, except for the severity levels.
 
 Task Requirements:
 1. Classification: Identify the type of legal document. IF the text is empty OR is NOT a legal document/contract/policy (e.g. recipe, random text), you MUST classify it as 'Non-Legal Document / Unreadable', return an empty array for risk_audit [], and set risk_score to 0. DO NOT hallucinate risks.
@@ -250,16 +242,15 @@ Task Requirements:
 
 Output JSON Schema:
 {{
-  "classification": "string written in {lang_schema}",
-  "simplification": "string written in {lang_schema}",
+  "classification": "string naturally written in {selected_language}",
+  "simplification": "string naturally written in {selected_language}",
   "fairness_insights": "string explicitly identifying the victim (e.g., 'This document aggressively risks the Wife by favoring the Husband')",
   "party_at_risk": "string identifying who is primarily disadvantaged (e.g. 'The Wife', 'The Tenant', 'The Employer', or 'Mutual')",
-  "detected_language": "the name of the language this document is written in",
   "risk_score": 0,
   "risk_audit": [
-     {{"severity": "Strictly ONLY 'High', 'Medium', or 'Low' in ENGLISH", "finding": "string written in {lang_schema}"}}
+     {{"severity": "Strictly ONLY 'High', 'Medium', or 'Low' in ENGLISH", "finding": "string naturally written in {selected_language}"}}
   ],
-  "advisory": {{"worst_case": "string written in {lang_schema}", "negotiation_tips": ["string", "string"]}}
+  "advisory": {{"worst_case": "string naturally written in {selected_language}", "negotiation_tips": ["string", "string"]}}
 }}"""
                 completion = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
@@ -288,11 +279,6 @@ Output JSON Schema:
 # ── RESULTS DASHBOARD ─────────────────────────────────────────────────────────
 if st.session_state.analysis_data:
     data = st.session_state.analysis_data
-
-    # Show auto-detected language as a UI badge
-    detected_lang = data.get('detected_language', '')
-    if detected_lang and selected_language == "Auto-Detect":
-        st.markdown(f'<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#34d399;border-radius:6px;padding:4px 12px;font-size:0.78rem;font-weight:600;margin-bottom:1rem;">🌐 Document language auto-detected: {detected_lang}</div>', unsafe_allow_html=True)
 
     # ── Score helpers (logic unchanged) ─────────────────────────────────────
     score = data.get('risk_score', 0)
@@ -398,11 +384,8 @@ if st.session_state.analysis_data:
             try:
                 chat_client = Groq(api_key=groq_key)
                 context_text = st.session_state.document_text[:10000]
-                # Determine reply language from analysis or user override
-                doc_lang = st.session_state.analysis_data.get('detected_language', 'English') if st.session_state.analysis_data else 'English'
-                reply_lang = doc_lang if selected_language == "Auto-Detect" else selected_language
                 chat_context = [
-                    {"role": "system", "content": f"You are a legal AI assistant for the document below. ALWAYS reply in {reply_lang}. If the user writes in a different language, still reply in {reply_lang} to match the document.\nDocument Context:\n{context_text}"}
+                    {"role": "system", "content": f"You are a legal AI assistant holding a Q&A session about the following document. You MUST reply natively in {selected_language}.\nDocument Context:\n{context_text}"}
                 ]
                 for msg in st.session_state.messages[-10:]:
                     chat_context.append(msg)
