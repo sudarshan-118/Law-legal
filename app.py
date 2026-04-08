@@ -5,95 +5,114 @@ import json
 import time
 import streamlit.components.v1 as components
 
-# --- CONFIG AND STATE ---
+# --- CONFIG ---
 st.set_page_config(page_title="LawLytics", page_icon="⚖️", layout="wide")
 
-# --- SIDEBAR ---
-with st.sidebar:
-    selected_language = st.selectbox("🌐 AI Output Language", ["English", "Hindi", "Tamil", "Kannada"])
-    with st.expander('🛠️ AI Agent Architecture'):
-        components.html("""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <script src="https://cdn.jsdelivr.net/npm/mermaid@9.4.3/dist/mermaid.min.js"></script>
-            <script>
-                mermaid.initialize({ startOnLoad: true });
-            </script>
-        </head>
-        <body style="background-color: transparent; margin: 0; padding: 0;">
-            <div class="mermaid" style="display: flex; justify-content: center; align-items: flex-start; font-family: sans-serif; padding-top: 10px;">
-        graph TD
-            Start --> Step0[Step 0: Preprocessing]
-            Step0 --> Step1[Step 1: Understanding]
-            Step1 --> Step2[Step 2: Simplification]
-            Step2 --> Step2A[Step 2A: Fairness Analysis]
-            Step2A --> Step3[Step 3: Risk Analysis]
-            Step3 --> Step4[Step 4: Risk Scoring]
-            Step4 --> Step5[Step 5: Decision Agent]
-            Step5 --> Step6[Step 6: Advisory Agent]
-            Step6 --> Step7[Step 7: Q&A Agent]
-            
-            style Step2A fill:#ffcc00,stroke:#333
-            style Step4 fill:#ff4b4b,stroke:#333
-            </div>
-        </body>
-        </html>
-        """, height=600, scrolling=True)
-
-# Hardcoded Groq Key
-groq_key = "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"
-
-# Inline Styling - Premium UI
+# ── GLOBAL CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
-/* Custom Container & Glassmorphism */
-.metric-container { 
-    background: rgba(255, 255, 255, 0.7); 
-    padding: 30px; 
-    border-radius: 20px; 
-    box-shadow: 0 8px 32px rgba(15, 23, 42, 0.05); 
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.5); 
-    text-align: center; 
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+
+/* ═══ SIDEBAR — always dark ═══ */
+[data-testid="stSidebar"] { background: #090b14 !important; border-right: 1px solid #1a1d2e; }
+[data-testid="stSidebar"] * { color: #e2e8f0 !important; }
+[data-testid="stSidebar"] .stSelectbox > div { background: #111827 !important; border: 1px solid #2d3148 !important; border-radius: 8px !important; }
+
+.law-logo { display:flex; align-items:center; gap:14px; padding:24px 0 20px 0; border-bottom:1px solid #1a1d2e; margin-bottom:18px; }
+.law-logo-icon { width:40px; height:40px; background:linear-gradient(135deg,#6366f1,#8b5cf6); border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:18px; box-shadow:0 4px 14px rgba(99,102,241,0.4); flex-shrink:0; }
+.law-logo-text { font-size:1.1rem; font-weight:700; color:#f1f5f9 !important; letter-spacing:-0.4px; }
+.law-logo-sub  { font-size:0.67rem; color:#374151 !important; letter-spacing:0.04em; margin-top:2px; }
+.sidebar-label { font-size:0.6rem !important; text-transform:uppercase; letter-spacing:0.14em; color:#374151 !important; font-weight:700; margin:16px 0 7px 0; }
+
+/* ═══ MAIN ═══ */
+.main .block-container { padding: 2rem 2.5rem; max-width: 1180px; }
+
+/* page header */
+.page-header { margin-bottom:1.8rem; padding-bottom:1.4rem; border-bottom:1px solid rgba(148,163,184,0.15); }
+.page-header h1 { font-size:1.7rem; font-weight:700; letter-spacing:-0.5px; margin:0 0 4px 0; }
+.page-header p  { font-size:0.86rem; color:#94a3b8; margin:0; }
+
+/* primary button */
+[data-testid="stButton"] > button[kind="primary"] {
+    background: linear-gradient(135deg,#6366f1,#8b5cf6) !important;
+    color:white !important; border:none !important; border-radius:10px !important;
+    font-weight:600 !important; font-size:0.92rem !important;
+    padding:0.7rem 1.4rem !important; box-shadow:0 4px 14px rgba(99,102,241,0.35) !important;
+    transition:all 0.2s ease !important;
 }
-.metric-container:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 40px rgba(15, 23, 42, 0.1);
+[data-testid="stButton"] > button[kind="primary"]:hover { transform:translateY(-1px); box-shadow:0 8px 22px rgba(99,102,241,0.45) !important; }
+
+/* secondary button */
+[data-testid="stButton"] > button:not([kind="primary"]) {
+    border-radius:9px !important; font-weight:600 !important; font-size:0.88rem !important;
+    border:1px solid rgba(148,163,184,0.3) !important;
 }
 
-/* Beautiful Status Badges */
-.badge-safe { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 8px 16px; border-radius: 20px; font-weight: 800; font-size: 1rem; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); }
-.badge-moderate { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 8px 16px; border-radius: 20px; font-weight: 800; font-size: 1rem; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3); }
-.badge-risky { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 8px 16px; border-radius: 20px; font-weight: 800; font-size: 1rem; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3); }
+/* classification tag */
+.doc-class-tag { display:inline-flex; align-items:center; gap:8px; background:rgba(99,102,241,0.12); border:1px solid rgba(99,102,241,0.3); color:#818cf8; border-radius:8px; padding:5px 13px; font-weight:600; font-size:0.82rem; margin-bottom:1.3rem; }
 
-/* Score Typography */
-.score-value { font-size: 4.5rem; font-weight: 900; line-height: 1; margin: 10px 0; }
-.color-safe { color: #10b981; }
-.color-moderate { color: #f59e0b; }
-.color-risky { color: #ef4444; }
+/* tabs */
+[data-testid="stTabs"] [role="tab"] { font-size:0.83rem !important; font-weight:600 !important; padding:10px 18px !important; border-radius:0 !important; border-bottom:2px solid transparent !important; transition:all 0.2s; }
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] { color:#818cf8 !important; border-bottom:2px solid #818cf8 !important; background:transparent !important; }
 
-/* Risk Audit Tags */
-.severity-high { background-color: #fef2f2; color: #991b1b; padding: 4px 10px; border-radius: 8px; font-weight: 700; display: inline-block; font-size: 0.8em; border: 1px solid #fecaca; margin-right: 8px; }
-.severity-medium { background-color: #fffbeb; color: #b45309; padding: 4px 10px; border-radius: 8px; font-weight: 700; display: inline-block; font-size: 0.8em; border: 1px solid #fde68a; margin-right: 8px;}
-.severity-low { background-color: #ecfdf5; color: #065f46; padding: 4px 10px; border-radius: 8px; font-weight: 700; display: inline-block; font-size: 0.8em; border: 1px solid #a7f3d0; margin-right: 8px;}
+/* ═══ RISK CARD — dark always ═══ */
+.risk-card { background:#0d1117; border:1px solid #21262d; border-radius:18px; padding:28px 24px; box-shadow:0 2px 20px rgba(0,0,0,0.4); text-align:center; }
+.risk-card-label { font-size:0.69rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#4b5563; margin-bottom:10px; }
+.risk-score-num { font-size:5rem; font-weight:900; line-height:1; font-family:'JetBrains Mono',monospace; margin-bottom:4px; }
+.risk-score-denom { font-size:1.5rem; font-weight:400; color:#374151; }
+.risk-badge { display:inline-block; border-radius:999px; padding:5px 18px; font-size:0.77rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin:14px 0 12px 0; }
+.badge-safe     { background:#064e3b; color:#6ee7b7; border:1px solid #065f46; }
+.badge-moderate { background:#451a03; color:#fbbf24; border:1px solid #78350f; }
+.badge-risky    { background:#450a0a; color:#fca5a5; border:1px solid #7f1d1d; }
+.party-tag { font-size:0.79rem; color:#64748b; margin-bottom:16px; font-weight:500; }
+.party-tag strong { color:#e2e8f0; }
+.gauge-track { width:100%; height:7px; background:#161b22; border-radius:999px; overflow:hidden; }
+.gauge-fill  { height:100%; border-radius:999px; transition:width 0.8s cubic-bezier(0.4,0,0.2,1); }
 
-/* Agent Boxes */
-.agent-box { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f8fafc; padding: 30px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); border: 1px solid #334155; height: 100%; }
-.agent-box h3 { color: #38bdf8 !important; margin-top: 0; font-weight: 800; letter-spacing: -0.5px; }
-.agent-box .glow-text { color: #818cf8; font-weight: 600; }
-.agent-box ul { margin-top: 15px; background: rgba(255,255,255,0.03); border-radius: 12px; padding: 20px 20px 20px 40px; border: 1px solid rgba(255,255,255,0.05); }
-.agent-box li { margin-bottom: 12px; font-weight: 400; line-height: 1.7; color: #cbd5e1; }
-.agent-box li::marker { color: #38bdf8; }
+/* ═══ RISK ROWS — dark always ═══ */
+.risk-rows-wrap { border:1px solid #21262d; border-radius:14px; padding:4px 14px; background:#0d1117; }
+.risk-row { display:flex; align-items:flex-start; gap:12px; padding:13px 0; border-bottom:1px solid #161b22; }
+.risk-row:last-child { border-bottom:none; }
+.sev-pill { flex-shrink:0; font-size:0.65rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; border-radius:6px; padding:3px 9px; border:1px solid; }
+.sev-high   { background:#450a0a; color:#fca5a5; border-color:#7f1d1d; }
+.sev-medium { background:#451a03; color:#fbbf24; border-color:#78350f; }
+.sev-low    { background:#064e3b; color:#6ee7b7; border-color:#065f46; }
+.risk-text  { font-size:0.88rem; color:#94a3b8; line-height:1.6; }
 
-/* Custom Progress Bar for Risk */
-.gauge-bg { width: 100%; height: 20px; background-color: #e2e8f0; border-radius: 10px; overflow: hidden; margin-top: 15px; position: relative; }
-.gauge-fill { height: 100%; border-radius: 10px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
+/* ═══ TAB SECTION TITLES ═══ */
+.tsec { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#64748b; margin:20px 0 9px 0; }
+.tsec:first-child { margin-top:4px; }
+
+/* ═══ INFO CARDS — adapts to theme ═══ */
+.info-card { background:rgba(99,102,241,0.06); border-left:3px solid #6366f1; border-radius:0 12px 12px 0; padding:14px 18px; font-size:0.9rem; color:#94a3b8; line-height:1.75; border-top:1px solid rgba(99,102,241,0.1); border-right:1px solid rgba(99,102,241,0.1); border-bottom:1px solid rgba(99,102,241,0.1); }
+.info-card-green { border-left-color:#10b981; border-top-color:rgba(16,185,129,0.1); border-right-color:rgba(16,185,129,0.1); border-bottom-color:rgba(16,185,129,0.1); background:rgba(16,185,129,0.06); }
+
+/* ═══ CLAUSE CHIPS — dark ═══ */
+.clause-chip { background:#1c1a0e; border:1px solid #3a3010; border-radius:10px; padding:11px 15px; font-size:0.87rem; color:#fde68a; margin-bottom:9px; line-height:1.6; }
+.clause-num  { font-family:'JetBrains Mono',monospace; font-size:0.66rem; color:#fbbf24; font-weight:700; margin-bottom:3px; }
+
+/* ═══ ADVISORY CARD — always dark ═══ */
+.advisory-card { background:#0d1117; border-radius:18px; padding:30px; color:#e2e8f0; border:1px solid #21262d; box-shadow:0 8px 32px rgba(0,0,0,0.4); }
+.advisory-card h2 { font-size:1.05rem; font-weight:700; color:#a5b4fc; margin:0 0 22px 0; letter-spacing:-0.3px; }
+.adv-label { font-size:0.67rem; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:#818cf8; margin-bottom:7px; }
+.adv-body  { font-size:0.9rem; line-height:1.75; color:#94a3b8; margin-bottom:22px; }
+.adv-divider { border:none; border-top:1px solid #21262d; margin:22px 0; }
+.tip-item { display:flex; align-items:flex-start; gap:11px; margin-bottom:12px; }
+.tip-num  { width:22px; height:22px; background:#161b22; border-radius:6px; font-size:0.72rem; color:#818cf8; display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0; margin-top:2px; }
+.tip-text { font-size:0.88rem; color:#94a3b8; line-height:1.65; }
+
+/* ═══ CHAT DIVIDER ═══ */
+.chat-sep { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#64748b; margin:2rem 0 1rem 0; display:flex; align-items:center; gap:10px; }
+.chat-sep::before, .chat-sep::after { content:''; flex:1; height:1px; background:rgba(148,163,184,0.15); }
+
+/* ═══ FILE UPLOADER ═══ */
+[data-testid="stFileUploader"] { border-radius:13px; }
 </style>
 """, unsafe_allow_html=True)
 
+# ── SESSION STATE ──────────────────────────────────────────────────────────────
 if "analysis_data" not in st.session_state:
     st.session_state.analysis_data = None
 if "document_text" not in st.session_state:
@@ -101,40 +120,126 @@ if "document_text" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- MAIN APP ---
-col_title, col_logo = st.columns([8, 1])
-with col_title:
-    st.title("⚖️ LawLytics | Agentic AI Legal Platform")
-    st.caption("Advanced NLP processing. Upload a contract for high-speed multi-stage reasoning (Extraction, Auditing, Classification).")
+# ── SIDEBAR ────────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("""
+<div class="law-logo">
+<div class="law-logo-icon">⚖️</div>
+<div>
+<div class="law-logo-text">LawLytics</div>
+<div class="law-logo-sub">Agentic AI · Legal Platform</div>
+</div>
+</div>
+""", unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("Upload Legal PDF", type="pdf")
+    st.markdown('<div class="sidebar-label">Output Language</div>', unsafe_allow_html=True)
+    st.caption("Auto-detects document language. Override below if needed.")
+    selected_language = st.selectbox("", ["Auto-Detect", "English", "Hindi", "Tamil", "Kannada"], label_visibility="collapsed")
+
+    st.markdown('<div class="sidebar-label">AI Agent Pipeline</div>', unsafe_allow_html=True)
+
+    # Fixed Mermaid — no indentation inside the mermaid div
+    components.html("""<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@9.4.3/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+startOnLoad: true,
+theme: 'dark',
+themeVariables: {
+  primaryColor: '#1e293b',
+  primaryTextColor: '#e2e8f0',
+  primaryBorderColor: '#334155',
+  lineColor: '#818cf8',
+  secondaryColor: '#0f172a',
+  background: '#090b14',
+  nodeBorder: '#334155',
+  clusterBkg: '#111827',
+  titleColor: '#e2e8f0',
+  edgeLabelBackground: '#1e293b',
+  fontFamily: 'Inter, sans-serif'
+}
+});
+</script>
+<style>
+body { margin:0; padding:6px 4px; background:#090b14; }
+.mermaid svg { max-width:100%; }
+</style>
+</head>
+<body>
+<div class="mermaid">
+graph TD
+A([Start]) --> B[Preprocessing]
+B --> C[Understanding]
+C --> D[Simplification]
+D --> E[Fairness Analysis]
+E --> F[Risk Analysis]
+F --> G[Risk Scoring]
+G --> H[Decision Agent]
+H --> I[Advisory Agent]
+I --> J[Q&A Agent]
+style A fill:#6366f1,stroke:#6366f1,color:#fff
+style E fill:#b45309,stroke:#b45309,color:#fff
+style G fill:#b91c1c,stroke:#b91c1c,color:#fff
+style J fill:#065f46,stroke:#065f46,color:#fff
+</div>
+</body>
+</html>""", height=540, scrolling=False)
+
+    if st.session_state.analysis_data:
+        st.markdown('<div class="sidebar-label">Session</div>', unsafe_allow_html=True)
+        if st.button("↩ New Analysis", use_container_width=True):
+            st.session_state.analysis_data = None
+            st.session_state.document_text = ""
+            st.session_state.messages = []
+            st.rerun()
+
+# ── GROQ KEY (backend — unchanged) ────────────────────────────────────────────
+groq_key = "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"
+
+# ── MAIN HEADER ───────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="page-header">
+<h1>Legal Document Analyzer</h1>
+<p>Upload a contract or agreement — the AI pipeline extracts, audits, and scores it instantly.</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ── UPLOAD + PIPELINE ─────────────────────────────────────────────────────────
+uploaded_file = st.file_uploader("Drop your legal PDF here", type="pdf")
 
 if uploaded_file and not st.session_state.analysis_data:
-    # Notice: Groq is initialized here
+    # ── BACKEND (unchanged) ──────────────────────────────────
     client = Groq(api_key=groq_key)
-    
-    # Preprocessing (PyPDF2)
     reader = PyPDF2.PdfReader(uploaded_file)
     full_text = ""
     for page in reader.pages:
         extracted = page.extract_text()
         if extracted:
             full_text += extracted
-    
     st.session_state.document_text = full_text
+    # ── END BACKEND ──────────────────────────────────────────
 
-    if st.button("🚀 INITIATE AGENTIC AI PIPELINE", use_container_width=True, type="primary"):
-        with st.status("Executing Multi-stage Reasoning Engine...", expanded=True) as status:
-            st.write("📄 Document Upload & Processing [Complete]")
+    if st.button("⚡ Run AI Analysis Pipeline", use_container_width=True, type="primary"):
+        with st.status("Running multi-stage reasoning engine…", expanded=True) as status:
+            st.write("📄 Document Upload & Processing — done")
             time.sleep(0.4)
-            st.write("🔍 Text Extraction & Cleaning [Complete]")
+            st.write("🔍 Text Extraction & Cleaning — done")
             time.sleep(0.4)
-            st.write("⚖️ Legal Language Simplification & Fairness check running (Groq ultra-fast inference)...")
+            st.write("🧠 Legal reasoning & fairness check in progress (Groq)…")
             try:
-                # Multi-Agent Logic in Single LLM Call (JSON mode)
+                # ── BACKEND PROMPT (unchanged logic, auto-language added) ────
+                if selected_language == "Auto-Detect":
+                    lang_instruction = "Detect the primary language of the document text and respond entirely in that same language. If the document is in Hindi, respond in Hindi. If Tamil, respond in Tamil. If Kannada, respond in Kannada. Otherwise respond in English."
+                    lang_schema = "the same language as the document (auto-detected)"
+                else:
+                    lang_instruction = f"All generated output text MUST be written natively in {selected_language}."
+                    lang_schema = selected_language
+
                 sys_prompt = f"""You are a multi-agent AI legal system.
 Perform internal processing and output strictly a JSON object.
-CRITICAL: All generated output text in the JSON MUST be written natively in {selected_language}, except for the severity levels.
+CRITICAL: {lang_instruction} The only exception is severity levels which must stay in ENGLISH.
 
 Task Requirements:
 1. Classification: Identify the type of legal document. IF the text is empty OR is NOT a legal document/contract/policy (e.g. recipe, random text), you MUST classify it as 'Non-Legal Document / Unreadable', return an empty array for risk_audit [], and set risk_score to 0. DO NOT hallucinate risks.
@@ -145,17 +250,17 @@ Task Requirements:
 
 Output JSON Schema:
 {{
-  "classification": "string naturally written in {selected_language}",
-  "simplification": "string naturally written in {selected_language}",
-  "fairness_insights": "string explicitly identifying the victim (e.g., 'This document aggressively risks the Wife by favoring the Husband's rights')",
+  "classification": "string written in {lang_schema}",
+  "simplification": "string written in {lang_schema}",
+  "fairness_insights": "string explicitly identifying the victim (e.g., 'This document aggressively risks the Wife by favoring the Husband')",
   "party_at_risk": "string identifying who is primarily disadvantaged (e.g. 'The Wife', 'The Tenant', 'The Employer', or 'Mutual')",
+  "detected_language": "the name of the language this document is written in",
   "risk_score": 0,
   "risk_audit": [
-     {{"severity": "Strictly ONLY 'High', 'Medium', or 'Low' in ENGLISH", "finding": "string naturally written in {selected_language}"}}
+     {{"severity": "Strictly ONLY 'High', 'Medium', or 'Low' in ENGLISH", "finding": "string written in {lang_schema}"}}
   ],
-  "advisory": {{"worst_case": "string naturally written in {selected_language}", "negotiation_tips": ["string", "string"]}}
+  "advisory": {{"worst_case": "string written in {lang_schema}", "negotiation_tips": ["string", "string"]}}
 }}"""
-                
                 completion = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
                     messages=[
@@ -165,43 +270,36 @@ Output JSON Schema:
                     temperature=0.1,
                     response_format={"type": "json_object"}
                 )
-                
                 response_content = completion.choices[0].message.content
                 st.session_state.analysis_data = json.loads(response_content)
-                status.update(label="Analysis Complete! Generating High-speed Output...", state="complete", expanded=False)
+                status.update(label="Analysis complete ✓", state="complete", expanded=False)
                 st.rerun()
+                # ── END BACKEND ──────────────────────────────────────────
 
             except Exception as e:
                 error_str = str(e)
                 if "Failed to generate JSON" in error_str or "max completion tokens" in error_str:
-                    msg = "⚠️ Invalid Document Type: The AI failed to generate a risk analysis. This usually happens if you upload non-legal documents (like class notes, recipes, or random text) that don't match standard contract structures. Please upload a valid legal agreement."
+                    msg = "⚠️ Invalid Document Type: The AI could not analyse this file. Please upload a valid legal document (contract, agreement, policy, etc.)."
                 else:
                     msg = f"⚠️ API Error: {error_str}"
-                
-                status.update(label="Processing Failed", state="error", expanded=True)
+                status.update(label="Processing failed", state="error", expanded=True)
                 st.error(msg)
 
-# --- DASHBOARD & AGENTS ---
+# ── RESULTS DASHBOARD ─────────────────────────────────────────────────────────
 if st.session_state.analysis_data:
     data = st.session_state.analysis_data
-    
-    st.markdown("---")
-    
-    # 1. Header with Badge Document Classification
-    col_class, col_space = st.columns([7, 3])
-    with col_class:
-        st.markdown(f"### 📂 Document Auto-Classification: <span style='color: #475569; font-weight: 600;'>{data.get('classification', 'Unknown')}</span>", unsafe_allow_html=True)
-    
-    # 2. Main Tabbed Interface
-    tab1, tab2, tab3 = st.tabs(["📊 Dashboard & Risk", "🔎 Deep Analysis & Clauses", "⚖️ Strategy & Case Strength"])
-    
-    score = data.get('risk_score', 0)
-    score_class = "color-safe" if score < 40 else "color-moderate" if score < 75 else "color-risky"
-    badge_class = "badge-safe" if score < 40 else "badge-moderate" if score < 75 else "badge-risky"
-    decision_text = "SAFE TO PROCEED" if score < 40 else "MODERATE RISK" if score < 75 else "HIGHLY RISKY"
-    gauge_color = "#10b981" if score < 40 else "#f59e0b" if score < 75 else "#ef4444"
 
-    # Derive Case Strength
+    # Show auto-detected language as a UI badge
+    detected_lang = data.get('detected_language', '')
+    if detected_lang and selected_language == "Auto-Detect":
+        st.markdown(f'<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#34d399;border-radius:6px;padding:4px 12px;font-size:0.78rem;font-weight:600;margin-bottom:1rem;">🌐 Document language auto-detected: {detected_lang}</div>', unsafe_allow_html=True)
+
+    # ── Score helpers (logic unchanged) ─────────────────────────────────────
+    score = data.get('risk_score', 0)
+    score_color   = "#10b981" if score < 40 else "#f59e0b" if score < 75 else "#ef4444"
+    badge_class   = "badge-safe" if score < 40 else "badge-moderate" if score < 75 else "badge-risky"
+    decision_text = "Safe to Proceed" if score < 40 else "Moderate Risk" if score < 75 else "Highly Risky"
+
     if score < 40:
         case_strength = ("**Strong Case Strength**: This document is well-balanced. In a dispute, "
                      "a court would likely view the terms as fair and mutual. Minimal hidden liabilities.")
@@ -213,102 +311,85 @@ if st.session_state.analysis_data:
         case_strength = ("**Weak Case Strength (Dispute Warning)**: Highly skewed terms detected. Courts in many jurisdictions "
                      "might strike down such aggressively one-sided clauses (unconscionability), but engaging in a dispute "
                      "would be costly. Strong recommendation to halt and renegotiate.")
+    # ── End score helpers ────────────────────────────────────────────────────
 
+    # Classification tag
+    st.markdown(f'<div class="doc-class-tag">📂 {data.get("classification","Unknown Document")}</div>', unsafe_allow_html=True)
+
+    tab1, tab2, tab3 = st.tabs(["Risk Overview", "Deep Analysis", "Strategy & Advisory"])
+
+    # ════════════════ TAB 1 — RISK OVERVIEW ════════════════
     with tab1:
-        st.markdown("<br/>", unsafe_allow_html=True)
-        rc1, rc2 = st.columns([1, 1.5])
-        
-        with rc1:
+        col_score, col_risks = st.columns([1, 1.65], gap="large")
+
+        with col_score:
             st.markdown(f"""
-<div class="metric-container">
-<h4 style="margin-top:0; color:#64748b; font-weight:600; text-transform:uppercase; font-size:0.9rem;">Overall Risk Score</h4>
-<div class="score-value {score_class}">{score}<span style="font-size:2rem; color:#cbd5e1;">/100</span></div>
-<div class="{badge_class}">{decision_text}</div>
-<div style="margin-top: 15px; color:#64748b; font-size:0.95rem; font-weight: 600;">Risk primarily affects: <span style="color:#0f172a;">{data.get('party_at_risk', 'Unknown/Mutual')}</span></div>
-<div class="gauge-bg">
-<div class="gauge-fill" style="width: {score}%; background-color: {gauge_color};"></div>
+<div class="risk-card">
+<div class="risk-card-label">Overall Risk Score</div>
+<div class="risk-score-num" style="color:{score_color};">{score}<span class="risk-score-denom">/100</span></div>
+<div class="risk-badge {badge_class}">{decision_text}</div>
+<div class="party-tag">Risk primarily affects: <strong>{data.get('party_at_risk','—')}</strong></div>
+<div class="gauge-track">
+<div class="gauge-fill" style="width:{score}%; background:{score_color};"></div>
 </div>
 </div>
 """, unsafe_allow_html=True)
-            
-            st.markdown("<br/>", unsafe_allow_html=True)
-            if st.button("🔄 Start New Session", use_container_width=True):
-                st.session_state.analysis_data = None
-                st.session_state.document_text = ""
-                st.session_state.messages = []
-                st.rerun()
 
-        with rc2:
-            st.markdown("<h4 style='margin-bottom: 20px;'>🚩 High-Priority Risk Detection</h4>", unsafe_allow_html=True)
+        with col_risks:
+            st.markdown('<div class="tsec">🚩 Risk Findings</div>', unsafe_allow_html=True)
             risks = data.get('risk_audit', [])
             if not risks:
                 st.success("No significant risks detected. The document appears balanced.")
             else:
+                rows_html = ""
                 for risk in risks:
                     sev = str(risk.get('severity', 'Low')).capitalize()
-                    sev_class = f"severity-{sev.lower()}" if sev in ['High', 'Medium', 'Low'] else "severity-low"
-                    finding = risk.get("finding", "")
-                    
-                    st.markdown(f"""
-<div style="background: white; padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #f1f5f9; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
-<span class="{sev_class}">{sev.upper()} RISK</span>
-<span style="color: #334155; font-size: 0.95rem;">{finding}</span>
-</div>
-""", unsafe_allow_html=True)
+                    sev_cls = f"sev-{sev.lower()}" if sev in ['High','Medium','Low'] else "sev-low"
+                    rows_html += f'<div class="risk-row"><span class="sev-pill {sev_cls}">{sev}</span><span class="risk-text">{risk.get("finding","")}</span></div>'
+                st.markdown(f'<div class="risk-rows-wrap">{rows_html}</div>', unsafe_allow_html=True)
 
+    # ════════════════ TAB 2 — DEEP ANALYSIS ════════════════
     with tab2:
-        st.markdown("<br/>", unsafe_allow_html=True)
-        st.markdown("### 📝 Legal Language Simplification")
-        st.info(data.get('simplification', 'No summary provided.'))
-        
-        st.markdown("---")
-        st.markdown("### ⚖️ Fairness & Bias Analysis")
-        st.success(data.get('fairness_insights', 'No fairness insights provided.'))
+        st.markdown('<div class="tsec">📝 Plain-Language Summary</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="info-card">{data.get("simplification","No summary available.")}</div>', unsafe_allow_html=True)
 
-        st.markdown("---")
-        st.markdown("### 🔍 Extracted Clause Highlights")
-        st.caption("Clauses flagged by the Risk Agent for review:")
-        for idx, risk in enumerate(data.get('risk_audit', [])):
-            if risk.get('severity') in ['High', 'Medium']:
-                st.markdown(f"**Clause Flag {idx+1}**: {risk.get('finding')}")
-            
+        st.markdown('<div class="tsec" style="margin-top:24px;">⚖️ Fairness & Bias Analysis</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="info-card info-card-green">{data.get("fairness_insights","No insights available.")}</div>', unsafe_allow_html=True)
+
+        flagged = [r for r in data.get('risk_audit', []) if r.get('severity') in ['High', 'Medium']]
+        if flagged:
+            st.markdown('<div class="tsec" style="margin-top:24px;">🔍 Flagged Clauses</div>', unsafe_allow_html=True)
+            for idx, risk in enumerate(flagged):
+                st.markdown(f'<div class="clause-chip"><div class="clause-num">CLAUSE FLAG {idx+1}</div>{risk.get("finding","")}</div>', unsafe_allow_html=True)
+
+    # ════════════════ TAB 3 — STRATEGY ════════════════
     with tab3:
-        st.markdown("<br/>", unsafe_allow_html=True)
-        adv = data.get('advisory', {})
-        tips_html = "".join([f"<li>{tip}</li>" for tip in adv.get('negotiation_tips', [])])
-        
+        adv  = data.get('advisory', {})
+        tips = adv.get('negotiation_tips', [])
+        tips_html = "".join([f'<div class="tip-item"><div class="tip-num">{i+1}</div><div class="tip-text">{tip}</div></div>' for i, tip in enumerate(tips)])
+
         st.markdown(f"""
-<div class="agent-box">
-<h3>🤖 Strategic Advisory Agent \\ <span style="font-size: 0.7em; color: #94a3b8;">DISPUTE MODE</span></h3>
-<p style="font-size:1.1em; line-height: 1.6; margin-top: 25px;">
-<span class="glow-text">🚨 Worst-Case Scenario:</span><br/> 
-<span style="color:#e2e8f0;">{adv.get('worst_case', 'N/A')}</span>
-</p>
-<p style="font-size:1.1em; line-height: 1.6; margin-top: 20px;">
-<span class="glow-text">⚖️ Case Strength:</span><br/> 
-<span style="color:#e2e8f0;">{case_strength}</span>
-</p>
-<p style="font-size:1.1em; margin-top:25px; margin-bottom:10px;">
-<span class="glow-text">💡 Actionable Negotiation Suggestions:</span>
-</p>
-<ul>
+<div class="advisory-card">
+<h2>🤖 Strategic Advisory &nbsp;·&nbsp; <span style="color:#475569;font-weight:400;font-size:0.85em;">Dispute Mode</span></h2>
+<div class="adv-label">🚨 Worst-Case Scenario</div>
+<div class="adv-body">{adv.get('worst_case','N/A')}</div>
+<hr class="adv-divider"/>
+<div class="adv-label">⚖️ Case Strength Assessment</div>
+<div class="adv-body">{case_strength}</div>
+<hr class="adv-divider"/>
+<div class="adv-label">💡 Negotiation Suggestions</div>
 {tips_html}
-</ul>
 </div>
 """, unsafe_allow_html=True)
 
-
-
-    # --- Q&A CHAT INTERFACE ---
-    st.markdown("---")
-    st.subheader("💬 Q&A Chat Agent")
-    st.caption("Ask specific questions about the processed document.")
+    # ════════════════ Q&A CHAT (backend unchanged) ════════════════
+    st.markdown('<div class="chat-sep">Q&A Chat Agent</div>', unsafe_allow_html=True)
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    if prompt := st.chat_input("Ask about the document..."):
+    if prompt := st.chat_input("Ask about the document…"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -316,22 +397,20 @@ if st.session_state.analysis_data:
         with st.chat_message("assistant"):
             try:
                 chat_client = Groq(api_key=groq_key)
-                # Keep lightweight context up to 10k chars
                 context_text = st.session_state.document_text[:10000]
-                
+                # Determine reply language from analysis or user override
+                doc_lang = st.session_state.analysis_data.get('detected_language', 'English') if st.session_state.analysis_data else 'English'
+                reply_lang = doc_lang if selected_language == "Auto-Detect" else selected_language
                 chat_context = [
-                    {"role": "system", "content": f"You are a legal AI assistant holding a Q&A session about the following document. You MUST reply natively in {selected_language}.\nDocument Context:\n{context_text}"}
+                    {"role": "system", "content": f"You are a legal AI assistant for the document below. ALWAYS reply in {reply_lang}. If the user writes in a different language, still reply in {reply_lang} to match the document.\nDocument Context:\n{context_text}"}
                 ]
-                # Pass larger recent history for better memory recall (last 10 turns)
                 for msg in st.session_state.messages[-10:]:
                     chat_context.append(msg)
-                
                 chat_completion = chat_client.chat.completions.create(
                     model="llama-3.1-8b-instant",
                     messages=chat_context,
                     temperature=0.3
                 )
-                
                 response = chat_completion.choices[0].message.content
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
