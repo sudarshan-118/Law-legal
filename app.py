@@ -4,9 +4,9 @@ from groq import Groq
 import json
 import time
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+
+
 
 # --- CONFIG ---
 st.set_page_config(page_title="LawLytics", page_icon="⚖️", layout="wide")
