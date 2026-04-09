@@ -259,7 +259,7 @@ with st.sidebar:
             st.rerun()
 
 # ── GROQ KEY (backend) ────────────────────────────────────────────────────────
-groq_key = os.environ.get("GROQ_API_KEY", "")
+groq_key = os.environ.get("GROQ_API_KEY", "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")
 
 # ── MAIN HEADER ───────────────────────────────────────────────────────────────
 st.markdown("""
