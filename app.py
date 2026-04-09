@@ -255,7 +255,7 @@ with st.sidebar:
             st.rerun()
 
 # ── GROQ KEY (backend) ────────────────────────────────────────────────────────
-groq_key = "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"
+groq_key = "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"
 
 # ── MAIN HEADER ───────────────────────────────────────────────────────────────
 st.markdown("""
