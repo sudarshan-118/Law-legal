@@ -3,6 +3,10 @@ import PyPDF2
 from groq import Groq
 import json
 import time
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --- CONFIG ---
 st.set_page_config(page_title="LawLytics", page_icon="⚖️", layout="wide")
@@ -255,7 +259,7 @@ with st.sidebar:
             st.rerun()
 
 # ── GROQ KEY (backend) ────────────────────────────────────────────────────────
-groq_key = "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"
+groq_key = os.environ.get("GROQ_API_KEY", "")
 
 # ── MAIN HEADER ───────────────────────────────────────────────────────────────
 st.markdown("""
